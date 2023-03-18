@@ -1,50 +1,23 @@
-FROM node:10-alpine
-LABEL maintainer "h-mineta <h-mineta@0nyx.net>"
+FROM node:14.21-bullseye
 
 ENV DOCKER="YES"
+
 ARG REPOSITORY="https://github.com/Chinachu/Chinachu.git"
-ARG BRANCH="master"
-
+ARG BRANCH="gamma"
 ARG WORK_DIR="/usr/local/chinachu"
-
-#node container default value
 ARG USER_NAME="node"
 
-RUN set -x \
-	&& apk upgrade --update \
-	&& apk add \
-		bash \
-		coreutils \
-		curl \
-		procps \
-		ca-certificates \
-	\
-	&& apk add --virtual .build-deps \
-		git \
-		make \
-		gcc \
-		g++ \
-		autoconf \
-		automake \
-		wget \
-		curl \
-		sudo \
-		tar \
-		xz \
-		libc-dev \
-		musl-dev \
-		eudev-dev \
-		libevent-dev \
-		perl-utils \
-	\
-	&& mkdir -p ${WORK_DIR} \
-	&& git clone ${REPOSITORY} ${WORK_DIR} \
-	&& chown -R ${USER_NAME} ${WORK_DIR} \
-	&& cd ${WORK_DIR} \
-	&& git checkout ${BRANCH} \
-	&& echo 2 | sudo -u ${USER_NAME} ./chinachu installer \
-	&& echo 4 | sudo -u ${USER_NAME} ./chinachu installer \
-	&& echo 5 | sudo -u ${USER_NAME} ./chinachu installer \
+
+RUN apt -y update
+RUN apt install -y sudo
+RUN mkdir -p ${WORK_DIR} && git config --global --add safe.directory ${WORK_DIR} && git clone ${REPOSITORY} ${WORK_DIR} && chown -R ${USER_NAME} ${WORK_DIR} && cd ${WORK_DIR} && git checkout ${BRANCH}
+
+RUN cd ${WORK_DIR} \
+    && echo 2 | sudo -u ${USER_NAME} ./chinachu installer \
+    && echo 4 | sudo -u ${USER_NAME} ./chinachu installer \
+    && echo 5 | sudo -u ${USER_NAME} ./chinachu installer 
+
+RUN cd ${WORK_DIR} \
 	&& sudo -u ${USER_NAME} ./chinachu service operator initscript | tee /tmp/chinachu-operator \
 	&& sudo -u ${USER_NAME} ./chinachu service wui initscript | tee /tmp/chinachu-wui \
 	&& sudo -u ${USER_NAME} mkdir log \
@@ -55,9 +28,7 @@ RUN set -x \
 	\
 	# cleaning
 	&& cd / \
-	&& npm cache verify \
-	&& apk del --purge .build-deps \
-	&& rm -rf /var/cache/apk/*
+	&& npm cache verify 
 
 COPY services.sh /usr/local/bin
 COPY config.sample.json ${WORK_DIR}
@@ -65,3 +36,4 @@ COPY config.sample.json ${WORK_DIR}
 WORKDIR ${WORK_DIR}
 CMD ["/usr/local/bin/services.sh"]
 EXPOSE 10772 20772 5353
+
